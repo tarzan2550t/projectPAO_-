@@ -1,5 +1,54 @@
 const conn = require('../config/db')
+const getresulte =  async (req, res) => {
+  try {
+    const results = await conn("evaluation_results as er")
+      .leftJoin("users as u", "er.evaluator_id", "u.id")
+      .leftJoin("indicators as i", "er.indicator_id", "i.id")
+      .select(
+        "er.id as result_id",
+        "u.fullname as user_name",
+        "i.indicator_name",
+        "er.score",
+        "er.comment",
+        "er.created_at"
+      )
+      .orderBy("er.created_at", "desc");
 
+    res.json(results);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.getresultebyid = async (req, res) => {
+  try {
+    const id = req.user.id; // ✅ ถูก
+
+    const result = await conn("evaluation_results as er")
+      .leftJoin("users as u", "er.evaluator_id", "u.id")
+      .leftJoin("indicators as i", "er.indicator_id", "i.id")
+      .select(
+        "er.id as result_id",
+        "u.fullname as user_name",
+        "i.indicator_name",
+        "er.score",
+        "er.comment",
+        "er.created_at"
+      )
+      .where("er.user_id", id)   // ✅ ใช้ column ที่มีจริง
+      .orderBy("er.created_at", "desc");
+
+    if (!result || result.length === 0) {
+      return res.status(404).json({ message: "Result not found" });
+    }
+
+    res.json(result); // ✅ ต้องส่งกลับ
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
 exports.createevaluation_results = async (req,res,next)=>{
   try{
       console.log(req.body)

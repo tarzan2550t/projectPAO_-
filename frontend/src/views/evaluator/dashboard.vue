@@ -1,106 +1,84 @@
 <template>
-
-    
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-      <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-blue-500">
-        <p class="text-sm text-gray-500 uppercase font-bold text-black">ผู้ใช้งานทั้งหมด</p>
-        <p class="text-3xl font-bold text-black">1,250</p>
-      </div>
-      <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-green-500">
-        <p class="text-sm text-gray-500 uppercase font-bold text-black">หัวข้อการประเมิน</p>
-        <p class="text-3xl font-bold text-black" >48</p>
-      </div>
-      <div class="bg-white p-6 rounded-xl shadow-sm border-b-4 border-purple-500">
-        <p class="text-sm text-gray-500 uppercase font-bold text-black">อัตราการตอบกลับ</p>
-        <p class="text-3xl font-bold text-black">85%</p>
-      </div>
+  <!-- SUMMARY -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+    <div class="bg-white p-6 rounded-xl shadow border-b-4 border-blue-500">
+      <p class="text-sm font-bold">จำนวนการประเมินทั้งหมด</p>
+      <p class="text-3xl font-bold">{{ totalResults }}</p>
     </div>
 
+    <div class="bg-white p-6 rounded-xl shadow border-b-4 border-green-500">
+      <p class="text-sm font-bold">คะแนนเฉลี่ย</p>
+      <p class="text-3xl font-bold">{{ avgScore }}</p>
+    </div>
 
+    <div class="bg-white p-6 rounded-xl shadow border-b-4 border-purple-500">
+      <p class="text-sm font-bold">ผู้ถูกประเมิน</p>
+      <p class="text-3xl font-bold">{{ totalUsers }}</p>
+    </div>
+  </div>
 
-    <div class="overflow-x-auto rounded-box border border-base-content/5 bg-base-100">
-  <table class="table">
-    <!-- head -->
-    <thead>
-      <tr>
-        <th></th>
-        <th>Name</th>
-        <th>Job</th>
-        <th>Favorite Color</th>
-      </tr>
-    </thead>
-    <tbody>
-      <!-- row 1 -->
-      <tr>
-        <th>1</th>
-        <td>Cy Ganderton</td>
-        <td>Quality Control Specialist</td>
-        <td>Blue</td>
-      </tr>
-      <!-- row 2 -->
-      <tr>
-        <th>2</th>
-        <td>Hart Hagerty</td>
-        <td>Desktop Support Technician</td>
-        <td>Purple</td>
-      </tr>
-      <!-- row 3 -->
-      <tr>
-        <th>3</th>
-        <td>Brice Swyre</td>
-        <td>Tax Accountant</td>
-        <td>Red</td>
-      </tr>
-    </tbody>
-  </table>
-</div>
-  
+  <!-- LAST RESULTS -->
+  <div class="bg-base-100 rounded-xl shadow">
+    <div class="p-4 font-bold text-lg">🕒 ผลการประเมินล่าสุด</div>
+    <div class="overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>ชื่อ</th>
+            <th>หัวข้อ</th>
+            <th>คะแนน</th>
+            <th>วันที่</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, index) in recentResults" :key="item.result_id">
+            <td>{{ index + 1 }}</td>
+            <td>{{ item.user_name }}</td>
+            <td>{{ item.indicator_name }}</td>
+            <td>{{ item.score }}</td>
+            <td>{{ formatDate(item.created_at) }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
 </template>
+
 <script setup>
-import { onMounted, ref } from 'vue';
-import { Chart, registerables } from 'chart.js';
+import { ref, onMounted, computed } from 'vue'
+import api from '../api/axios'
 
-Chart.register(...registerables);
+const results = ref([])
 
-const chartRef = ref(null);
+const fetchResults = async () => {
+  const res = await api.get('/getevaluationresultslist')
+  results.value = res.data
+}
 
-onMounted(() => {
-  new Chart(chartRef.value, {
-    type: 'bar',
-    data: {
-      labels: ['Red', 'Blue', 'Yellow', 'Green', 'Purple', 'Orange'],
-      datasets: [{
-        label: '# of Votes',
-        data: [12, 19, 3, 5, 2, 3],
-        backgroundColor: [
-          'rgba(255, 99, 132, 0.5)',
-          'rgba(54, 162, 235, 0.5)',
-          'rgba(255, 206, 86, 0.5)',
-          'rgba(75, 192, 192, 0.5)',
-          'rgba(153, 102, 255, 0.5)',
-          'rgba(255, 159, 64, 0.5)'
-        ],
-        borderColor: [
-          'rgba(255, 99, 132, 1)',
-          'rgba(54, 162, 235, 1)',
-          'rgba(255, 206, 86, 1)',
-          'rgba(75, 192, 192, 1)',
-          'rgba(153, 102, 255, 1)',
-          'rgba(255, 159, 64, 1)'
-        ],
-        borderWidth: 1
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
-  });
-});
+const totalResults = computed(() => results.value.length)
+
+const avgScore = computed(() => {
+  if (!results.value.length) return 0
+  const sum = results.value.reduce((acc, r) => acc + r.score, 0)
+  return (sum / results.value.length).toFixed(2)
+})
+
+const totalUsers = computed(() => {
+  const ids = new Set(results.value.map(r => r.user_id))
+  return ids.size
+})
+
+const recentResults = computed(() => results.value.slice(0, 5))
+
+function formatDate(datetime) {
+  if (!datetime) return '-'
+  return new Date(datetime).toLocaleDateString('th-TH', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+}
+
+onMounted(fetchResults)
 </script>
-
-

@@ -34,11 +34,27 @@ exports.createResult = async (req, res, next) => {
 exports.getResultsByIndicator = async (req, res, next) => {
   try {
     const indicator_id = req.params.id
+
     const items = await conn('attachments')
       .leftJoin('users', 'attachments.evaluatee_id', 'users.id')
       .leftJoin('indicators', 'attachments.indicator_id', 'indicators.id')
-      .where({ indicator_id })
-      .select('attachments.*', 'users.name as evaluatee_name' , 'indicators.name as indicator_name')
+      .where('attachments.indicator_id', indicator_id)
+
+      // 🔥 ตัดรายการที่มีการประเมินแล้ว
+      .whereNotExists(function () {
+        this.select('*')
+          .from('evaluation_results')
+          .whereRaw('evaluation_results.indicator_id = attachments.indicator_id')
+          .whereRaw('evaluation_results.evaluatee_id = attachments.evaluatee_id')
+          .whereRaw('evaluation_results.period_id = attachments.period_id')
+      })
+
+      .select(
+        'attachments.*',
+        'users.name as evaluatee_name',
+        'indicators.name as indicator_name'
+      )
+
     res.json(items)
   } catch (err) {
     next(err)
